@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. 仓库结构：分层目录/关键文件是否齐全（防止误删、防止空提交）
+  # ---------------------------------------------------------------
+  structure:
+    name: 仓库结构检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 校验关键文件
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in README.md LICENSE .gitignore \
+                   docs/implementation-plan.md web/ads_dashboard.html; do
+            if [ -f "$f" ]; then
+              echo "OK   $f"
+            else
+              echo "MISS $f"; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: 校验数仓分层目录且每层都有 SQL
+        run: |
+          set -euo pipefail
+          fail=0
+          for d in sql/00-setup sql/01-cdc sql/02-ods-paimon sql/03-star-model \
+                   sql/04-dwm-dws sql/05-ads sql/06-hive-sync; do
+            if [ ! -d "$d" ]; then
+              echo "MISS 目录 $d"; fail=1; continue
+            fi
+            n=$(find "$d" -name '*.sql' | wc -l)
+            if [ "$n" -gt 0 ]; then
+              echo "OK   $d  ($n 个 SQL)"
+            else
+              echo "MISS $d 下没有 .sql"; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: 校验分层顺序命名规范（00~06）
+        run: |
+          set -euo pipefail
+          actual=$(find sql -maxdepth 1 -type d -name '[0-9][0-9]-*' | sed 's|sql/||' | sort | tr '\n' ' ')
+          echo "分层目录: $actual"
+          # 至少保留 7 个编号层级（00,01,...,06）
+          count=$(find sql -maxdepth 1 -type d -name '[0-9][0-9]-*' | wc -l)
+          [ "$count" -ge 7 ] || { echo "编号层级不足 7 个，实际 $count"; exit 1; }
+
+  # ---------------------------------------------------------------
+  # 2. Shell 脚本静态检查
+  # ---------------------------------------------------------------
+  shellcheck:
+    name: Shell 脚本检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck（error 级）
+        run: |
+          set -euo pipefail
+          shellcheck --version
+          shopt -s nullglob
+          files=(scripts/*.sh)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "没有 shell 脚本"; exit 0
+          fi
+          printf '检查: %s\n' "${files[@]}"
+          shellcheck -S error "${files[@]}"
+          echo "全部通过"
+
+  # ---------------------------------------------------------------
+  # 3. Python 脚本语法 + 静态检查
+  # ---------------------------------------------------------------
+  python:
+    name: Python 脚本检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 语法编译检查
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(scripts/*.py)
+          [ ${#files[@]} -gt 0 ] || { echo "没有 python 脚本"; exit 0; }
+          python -m py_compile "${files[@]}"
+          echo "py_compile 通过: ${files[*]}"
+      - name: pyflakes 未定义名/未使用导入
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyflakes
+          shopt -s nullglob
+          files=(scripts/*.py)
+          [ ${#files[@]} -gt 0 ] || exit 0
+          pyflakes "${files[@]}"
+
+  # ---------------------------------------------------------------
+  # 4. 敏感信息扫描
+  #    只扫「真实可用的凭据」：GitHub token / 各类 API key / AWS / 私钥 / Slack 等。
+  #    本仓库里那些本地实验密码（MySQL lab 账号）是**故意保留**的 ——
+  #    它们只用于 Host-Only 网络里的 VirtualBox 虚拟机（192.168.56.0/24），外网不可达，
+  #    且已在 docs/implementation-plan.md 中作为环境搭建说明公开。
+  # ---------------------------------------------------------------
+  secret-scan:
+    name: 敏感信息扫描
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 扫描真实凭据特征
+        run: |
+          set -euo pipefail
+          patterns=(
+            'ghp_[A-Za-z0-9]{20,}'          # GitHub PAT (classic)
+            'gho_[A-Za-z0-9]{20,}'          # GitHub OAuth
+            'ghs_[A-Za-z0-9]{20,}'          # GitHub App
+            'ghu_[A-Za-z0-9]{20,}'
+            'github_pat_[A-Za-z0-9_]{20,}'  # GitHub PAT (fine-grained)
+            'sk-[A-Za-z0-9]{20,}'           # OpenAI 风格
+            'AKIA[0-9A-Z]{16}'              # AWS Access Key ID
+            'xox[baprs]-[A-Za-z0-9-]{10,}'  # Slack
+            'AIza[A-Za-z0-9_-]{35}'         # Google API key
+            '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+          )
+          hit=0
+          for p in "${patterns[@]}"; do
+            # 排除 .git 与二进制；-I 跳过二进制文件
+            if grep -rInE "$p" --exclude-dir=.git . ; then
+              echo "!! 命中可疑凭据模式: $p"
+              hit=1
+            fi
+          done
+          if [ "$hit" -eq 1 ]; then
+            echo "发现疑似真实凭据，请从版本库中移除（改用 GitHub Secrets）"
+            exit 1
+          fi
+          echo "未发现真实凭据特征"
+
+      - name: 确认没有提交隐藏的 env/密钥文件
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            case "$f" in
+              *.env|*.env.local|*.pem|*.key|id_rsa*|*.p12|*.jks)
+                echo "!! 不该提交的敏感文件: $f"; fail=1 ;;
+            esac
+          done < <(git ls-files)
+          exit $fail

@@ -1,5 +1,12 @@
 # 出租车 GPS 实时数仓（Paimon 湖仓版）
 
+[![CI](https://github.com/William-Practice/taxi-realtime-warehouse/actions/workflows/ci.yml/badge.svg)](https://github.com/William-Practice/taxi-realtime-warehouse/actions/workflows/ci.yml)
+![Flink](https://img.shields.io/badge/Flink-1.17.2-E6526F?logo=apacheflink&logoColor=white)
+![Paimon](https://img.shields.io/badge/Paimon-0.8.0-1E88E5)
+![Kafka](https://img.shields.io/badge/Kafka-3.2.0-231F20?logo=apachekafka&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 > 一个**端到端跑通**的实时数仓项目：MySQL 业务库 → Flink CDC → Paimon 湖仓（ODS/DIM/DWM/DWS）→ ADS → WebSocket 实时大屏。
 > 本 README 可直接作为简历项目 / 面试讲解材料。
 
@@ -225,6 +232,23 @@ hive> SELECT * FROM dws_city_traffic;
 • 聚合结果持续 UPSERT 到 MySQL，经 WebSocket 推送前端实时大屏，端到端延迟 ~10s
 • 独立完成环境搭建、组件版本选型、链路排障（HDFS 副本 / Flink 并行度 / 湖表提交等）
 ```
+
+---
+
+## 十二、CI 与代码质量
+
+每次 push / PR 自动跑 4 个 job（配置见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)）：
+
+| Job | 做什么 |
+|-----|--------|
+| **仓库结构检查** | 关键文件（README / LICENSE / 大屏 / 实施计划）是否齐全；`sql/00-setup`~`sql/06-hive-sync` 七层目录是否存在、每层是否有 SQL、编号层级是否完整 |
+| **Shell 脚本检查** | `shellcheck -S error` 检查 `scripts/*.sh` |
+| **Python 脚本检查** | `py_compile` + `pyflakes` 检查 `scripts/*.py` |
+| **敏感信息扫描** | 扫 GitHub PAT / OpenAI / AWS / Slack / Google / 私钥等**真实凭据特征**，并阻止提交 `*.env` `*.pem` `*.key` 等敏感文件 |
+
+> 关于密码：仓库里的 MySQL 实验账号密码是**故意保留**的 —— 它们只用于 Host-Only 网络（`192.168.56.0/24`）中的
+> VirtualBox 虚拟机，外网不可达，且已在 `docs/implementation-plan.md` 里作为环境搭建说明公开。
+> 因此 CI 的密钥扫描只针对"真实可用的凭据"，不做无差别的 `password` 字段匹配。
 
 ---
 
