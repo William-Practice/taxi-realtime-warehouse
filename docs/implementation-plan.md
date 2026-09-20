@@ -97,6 +97,12 @@ MySQL binlog → Flink CDC → ODS(Hudi) ──→ DIM(Phoenix) ──→ DWM(Ph
   - 实测：插入 1 条 GPS → 上海点数 3→4、载客 2→3 自动更新
   - 说明：因给已存在的 Paimon 表加 `PROCTIME()` 需重建源表，事实流直接用 mysql-cdc（仍是实时）；Paimon 仍作为 DIM/湖存储
 
+- 阶段E：Paimon → Hive 同步 —— ✅ 2026-09-20 完成
+  - Hive-backed Paimon catalog（`'metastore'='hive'`）把表注册进 Hive metastore
+  - Flink lib 加 `flink-sql-connector-hive-2.3.9_2.12-1.17.2.jar`；Hive `auxlib/` 放 `paimon-hive-connector-3.1-0.8.0.jar` + `paimon-hive-catalog-0.8.0.jar`
+  - 验证：`hive -e "select * from dws_city_traffic"` 返回上海/北京两行
+  - 踩坑：`hive_sync` 表属性方式不生效（Hive 里查不到），改用 Hive-backed catalog；Hive 侧缺 Paimon 类 → 需 auxlib jar
+
 > 原 Hudi 相关阶段（阶段二/三）保留在下方仅供对照，实操以 Paimon 为准。
 
 ### 项目领域校正（据 L47~L48 网盘视频）

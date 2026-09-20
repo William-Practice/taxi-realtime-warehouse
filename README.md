@@ -33,6 +33,7 @@ taxi-realtime-warehouse/
 │   ├── 03-star-model/              # 阶段B: 星型模型 + DIM 加载
 │   ├── 04-dwm-dws/                 # 阶段C: 宽表 + 聚合
 │   ├── 05-ads/                     # 阶段D: ADS + 真实时流式作业
+│   ├── 06-hive-sync/               # Paimon → Hive 同步
 │   └── legacy-hudi/                # 旧 Hudi 版（供对照）
 ├── scripts/
 │   ├── dc-stack.sh                 # 基础栈一键起停
@@ -182,7 +183,37 @@ cd /home/wry/web && python3 -m http.server 8080 &               # :8080
 
 ---
 
-## 十、简历写法（模板）
+## 十、Paimon → Hive 同步（可选）
+
+让 Hive 能直接查询 Paimon 湖表（离线分析 / 血缘常用）。两种方式：
+
+**方式一：`hive_sync` 表属性** —— 见 `sql/06-hive-sync/01-hive-sync-options.sql`。
+
+**方式二：Hive-backed Paimon Catalog（推荐，表直接注册进 Hive metastore）**
+
+```sql
+CREATE CATALOG paimon_hive WITH (
+  'type'      = 'paimon',
+  'metastore' = 'hive',
+  'uri'       = 'thrift://bigdata-live01-01:9083',
+  'warehouse' = 'hdfs://bigdata-live01-01:9000/warehouse/paimon_hive'
+);
+```
+
+依赖：
+- Hive 侧：把 `paimon-hive-connector-3.1-0.8.0.jar` + `paimon-hive-catalog-0.8.0.jar` 放入 `$HIVE_HOME/auxlib/`
+- Flink 侧 lib：`flink-sql-connector-hive-2.3.9_2.12-1.17.2.jar`（提供 HiveConf 等）
+
+验证（Hive 直接读 Paimon 表）：
+```sql
+hive> SELECT * FROM dws_city_traffic;
+上海  20260920  3  2  25.17  2
+北京  20260920  1  1  62.3   1
+```
+
+---
+
+## 十一、简历写法（模板）
 
 ```
 项目：出租车 GPS 实时数仓（流批一体）
