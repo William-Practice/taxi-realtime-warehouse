@@ -17,7 +17,7 @@ CREATE TABLE mysql_vehicle_od (
   'hostname'  = 'localhost',
   'port'      = '3306',
   'username'  = 'cdc',
-  'password'  = 'Cdc@123456',
+  'password'  = 'CDC_PASSWORD',
   'database-name' = 'traffic',
   'table-name'    = 'vehicle_od',
   'scan.incremental.snapshot.enabled' = 'false',

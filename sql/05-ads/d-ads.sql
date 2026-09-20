@@ -20,7 +20,7 @@ CREATE TABLE ads_city_realtime (
   'url' = 'jdbc:mysql://localhost:3306/traffic',
   'table-name' = 'ads_city_realtime',
   'username' = 'cdc',
-  'password' = 'Cdc@123456',
+  'password' = 'CDC_PASSWORD',
   'driver' = 'com.mysql.cj.jdbc.Driver'
 );
 

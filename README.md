@@ -9,6 +9,7 @@
 
 > 一个**端到端跑通**的实时数仓项目：MySQL 业务库 → Flink CDC → Paimon 湖仓（ODS/DIM/DWM/DWS）→ ADS → WebSocket 实时大屏。
 > 本 README 可直接作为简历项目 / 面试讲解材料。
+> 姊妹仓库（Flink / Kafka 实验代码与踩坑记录）：[flink-kafka-labs](https://github.com/William-Practice/flink-kafka-labs)
 
 ---
 
@@ -249,6 +250,29 @@ hive> SELECT * FROM dws_city_traffic;
 > 关于密码：仓库里的 MySQL 实验账号密码是**故意保留**的 —— 它们只用于 Host-Only 网络（`192.168.56.0/24`）中的
 > VirtualBox 虚拟机，外网不可达，且已在 `docs/implementation-plan.md` 里作为环境搭建说明公开。
 > 因此 CI 的密钥扫描只针对"真实可用的凭据"，不做无差别的 `password` 字段匹配。
+
+---
+
+## 十三、凭据说明
+
+仓库**不保存任何真实凭据**：
+
+- `sql/**/*.sql` 与 `docs/*.md` 里的 `CDC_PASSWORD` / `HIVE_PASSWORD` / `SQOOP_PASSWORD`
+  都是**占位符**。本地实验要用时一行命令替换：
+
+  ```bash
+  find sql -name '*.sql' -exec sed -i "s/CDC_PASSWORD/<你的密码>/g" {} +
+  ```
+
+- `scripts/ads_ws.py` 已改为从环境变量读取，不需要替换：
+
+  ```bash
+  MYSQL_PASSWORD='你的密码' python3 scripts/ads_ws.py
+  # 支持 MYSQL_HOST / MYSQL_PORT / MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE
+  ```
+
+- CI 的「敏感信息扫描」job 会持续拦截真实凭据（GitHub PAT / OpenAI / AWS / Slack / Google / 私钥）
+  以及 `*.env`、`*.pem`、`*.key` 之类的文件被误提交。
 
 ---
 

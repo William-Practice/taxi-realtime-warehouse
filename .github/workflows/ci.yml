@@ -115,10 +115,10 @@ jobs:
 
   # ---------------------------------------------------------------
   # 4. 敏感信息扫描
-  #    只扫「真实可用的凭据」：GitHub token / 各类 API key / AWS / 私钥 / Slack 等。
-  #    本仓库里那些本地实验密码（MySQL lab 账号）是**故意保留**的 ——
-  #    它们只用于 Host-Only 网络里的 VirtualBox 虚拟机（192.168.56.0/24），外网不可达，
-  #    且已在 docs/implementation-plan.md 中作为环境搭建说明公开。
+  #    扫「真实可用的凭据」：GitHub token / 各类 API key / AWS / 私钥 / Slack 等。
+  #    本仓库不保存任何真实凭据 —— sql/ 与 docs/ 里的 MySQL 账号密码都是占位符
+  #    （CDC_PASSWORD / HIVE_PASSWORD / SQOOP_PASSWORD），scripts/ads_ws.py
+  #    改为从环境变量读取，替换方法见 README「凭据说明」。
   # ---------------------------------------------------------------
   secret-scan:
     name: 敏感信息扫描

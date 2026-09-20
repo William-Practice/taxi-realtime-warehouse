@@ -34,12 +34,21 @@ MySQL binlog → Flink CDC → ODS(Hudi) ──→ DIM(Phoenix) ──→ DWM(Ph
 
 | 用户名 | 密码 | 权限 | 用途 |
 |--------|------|------|------|
-| `hive_user` | `Hive@123456` | `%`、`bigdata-live01-01` | Hive metastore |
-| `sqoop` | `Sqoop@123456` | `%`、`192.168.56.%`、`localhost` | Sqoop 导入导出 |
+| `hive_user` | `HIVE_PASSWORD` | `%`、`bigdata-live01-01` | Hive metastore |
+| `sqoop` | `SQOOP_PASSWORD` | `%`、`192.168.56.%`、`localhost` | Sqoop 导入导出 |
 | `root` | （有密码，localhost） | `localhost` | 管理；`sudo mysql` 可 socket 免密 |
 | `debian-sys-maint` | 系统维护 | `localhost` | Debian 包管理 |
 
-> Flink CDC 需要一个具备 `REPLICATION SLAVE / REPLICATION CLIENT` 权限的账号——计划里新建了 `cdc / Cdc@123456`（见 Task 1.1）。
+> Flink CDC 需要一个具备 `REPLICATION SLAVE / REPLICATION CLIENT` 权限的账号——计划里新建了 `cdc / CDC_PASSWORD`（见 Task 1.1）。
+>
+> ⚠️ 上表里的密码均为**占位符**（仓库不保存真实凭据）。本地实验环境要用时，一行命令替换成你自己的密码：
+>
+> ```bash
+> find sql -name '*.sql' -exec sed -i "s/CDC_PASSWORD/<你的密码>/g" {} +
+> ```
+>
+> 其余两个账号同理（`HIVE_PASSWORD` / `SQOOP_PASSWORD`）。
+> `scripts/ads_ws.py` 已改为从环境变量读取，不需要替换。
 
 ### 进展记录
 
@@ -259,7 +268,7 @@ CREATE TABLE IF NOT EXISTS orders (
 -- 开启 binlog：确认 my.cnf 有 log-bin / binlog_format=ROW / server-id
 
 -- 创建 Flink CDC 专用账号（需 REPLICATION 权限）
-CREATE USER IF NOT EXISTS 'cdc'@'%' IDENTIFIED BY 'Cdc@123456';
+CREATE USER IF NOT EXISTS 'cdc'@'%' IDENTIFIED BY 'CDC_PASSWORD';
 GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'cdc'@'%';
 FLUSH PRIVILEGES;
 ```
@@ -293,7 +302,7 @@ CREATE TABLE mysql_orders (
   PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
   'connector'='mysql-cdc','hostname'='localhost','port'='3306',
-  'username'='cdc','password'='Cdc@123456',
+  'username'='cdc','password'='CDC_PASSWORD',
   'database-name'='shop','table-name'='orders',
   'server-time-zone'='UTC'      -- 必须与 MySQL 服务器时区一致（本机为 UTC）
 );

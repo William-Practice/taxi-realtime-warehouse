@@ -16,7 +16,7 @@ CREATE TABLE mysql_orders (
   'hostname'  = 'localhost',
   'port'      = '3306',
   'username'  = 'cdc',
-  'password'  = 'Cdc@123456',
+  'password'  = 'CDC_PASSWORD',
   'database-name' = 'shop',
   'table-name'    = 'orders'
 );

@@ -2,11 +2,20 @@
 # ADS 实时大屏 WebSocket 服务：每 2s 轮询 MySQL ads_city_realtime，推给所有浏览器
 import asyncio
 import json
+import os
+
 import pymysql
 import websockets
 
-DB = dict(host="localhost", port=3306, user="cdc",
-          password="Cdc@123456", database="traffic", charset="utf8mb4")
+# 数据库凭据从环境变量读取（不入库）；本地实验环境可参考 README「凭据说明」一节
+DB = dict(
+    host=os.environ.get("MYSQL_HOST", "localhost"),
+    port=int(os.environ.get("MYSQL_PORT", "3306")),
+    user=os.environ.get("MYSQL_USER", "cdc"),
+    password=os.environ.get("MYSQL_PASSWORD", "CHANGE_ME"),
+    database=os.environ.get("MYSQL_DATABASE", "traffic"),
+    charset="utf8mb4",
+)
 
 clients = set()
 

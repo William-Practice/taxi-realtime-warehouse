@@ -22,7 +22,7 @@ CREATE TABLE mysql_taxi_gps_detail (
   'hostname'  = 'localhost',
   'port'      = '3306',
   'username'  = 'cdc',
-  'password'  = 'Cdc@123456',
+  'password'  = 'CDC_PASSWORD',
   'database-name' = 'traffic',
   'table-name'    = 'taxi_gps_detail',
   'scan.incremental.snapshot.enabled' = 'false',
