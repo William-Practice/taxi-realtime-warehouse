@@ -1,0 +1,23 @@
+# Java
+target/
+*.class
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# logs / 临时
+*.log
+*.tmp
+nohup.out
+
+# OS
+.DS_Store
+Thumbs.db
